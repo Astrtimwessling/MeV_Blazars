@@ -1,0 +1,24 @@
+Catalog_dir: '/home/alab_student/Tim/Projects/Catalogs/'
+
+Out_dir: '/home/alab_student/Tim/Projects/MeV_Blazars/Outputs/LF_Outputs/'
+
+Catalog_Name: 'SED_Template_Params_Table.fits'
+
+columns:
+  lum_bin: 'Luminosity_Bin'
+  Class: 'Class'
+  SED_Type: 'SED_Type' 
+  Redshift: 'Redshift'
+  L0: 'L0'
+
+  LP_Alpha: 'alpha' 
+  LP_Beta: 'beta' 
+
+  Break_Energy: 'Eb'
+  Index1: 'alpha1'
+  Index2: 'alpha2'
+
+
+
+  
+

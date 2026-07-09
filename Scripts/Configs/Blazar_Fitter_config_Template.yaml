@@ -1,0 +1,32 @@
+
+Catalog_dir: 
+out_file_name: 
+
+out_dir:
+fsrq_out: 
+bll_out: 
+bcu_out: 
+
+Catalog_Name: 
+
+Fitting_X_ray_data: True
+Fitting_Gamma_ray_data: True
+
+columns:
+  source_name: 
+  source_class: 
+  source_SED_class:
+  energy_bands: 
+  energy_units: 
+  energy_flux: 
+  energy_flux_err: 
+  energy_flux_units: 
+  diff_flux_units: 
+
+fit_parameters:
+  fsrq_alpha: 
+  fsrq_beta: 
+  bll_alpha: 
+  bll_beta: 
+  bcu_alpha: 
+  bcu_beta: 

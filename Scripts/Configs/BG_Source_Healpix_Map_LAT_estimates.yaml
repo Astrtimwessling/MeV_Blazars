@@ -1,0 +1,21 @@
+Catalog_dir: '/home/alab_student/Tim/Projects/Catalogs/Skymap_Catalogs/'
+Out_dir: '/home/alab_student/Tim/Projects/MeV_Blazars/Outputs/JOINED_BG_Source_Maps/'
+
+Out_name: 'JOINED_BG_Source_Map_LAT_estimates'
+
+Map_Energy: '0.1-100.0'
+E_min: '0.1'
+E_max: '100.0' 
+Energy_Units: 'Erg'
+Flux_Units: 'Erg cm^-2 s^-1'
+
+BG_Catalog: 'GRAMS_Bins_COMPTEL_CGB.fits'
+BG_Data: 'COMPTEL'
+BG_Columns: 
+  BG_Flux: '0.1-100.0'
+
+Source_Catalog: 'LAT_skymap_data_erg.fits'
+Source_Columns:
+  RA: 'RA'
+  DEC: 'DEC'
+  Source_Flux: 'Flux'
