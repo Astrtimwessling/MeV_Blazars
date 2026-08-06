@@ -1,7 +1,7 @@
 Catalog_dir: '/home/alab_student/Tim/Projects/MeV_Blazars/Data/'
-out_file_name: 'MeV_Blazar_Fits_SBPL_results.fits'
+out_file_name: 'MeV_Blazar_Fits_LP_results.fits'
 
-out_dir: '/home/alab_student/Tim/Projects/MeV_Blazars/Outputs/Blazar_Fitter_out/Matched_Blazar_Fits_SBPL/'
+out_dir: '/home/alab_student/Tim/Projects/MeV_Blazars/Outputs/Blazar_Fitter_out/Matched_Blazar_Fits_LP/'
 fsrq_out: 'fsrq/'
 bll_out: 'bll/'
 bcu_out: 'bcu/'
@@ -26,7 +26,7 @@ columns:
   gamma_ray_index: 'Fermi_Photon_Index'
 
 fit_parameters:
-  model: 'Smooth Broken Power Law'
+  model: 'Log Parabola'
 
   # Power law parameters
   index: 2
@@ -40,7 +40,6 @@ fit_parameters:
   bcu_beta: 0.01
 
   # Broken power law parameters
-  break_energy: 10 
-  curvature: 1
-  
+  break_energy: 1
+
   

@@ -1,20 +1,11 @@
 import matplotlib.pyplot as plt
-import astropy.units as u
 import numpy as np 
 
 from astropy.table import Table, vstack
-from scipy.integrate import quad
-from scipy.optimize import curve_fit
+from functools import partial
 
-def energy_flux(dnde, E1, E2):
-
-    def integrand(logE):
-        E = np.exp(logE)
-        return E**2 * dnde(E)
-
-    result = quad(integrand, np.log(E1), np.log(E2))[0]
-
-    return result * 1.602176634e-6
+from src.Luminosity_Formulas import K_Corrected_Band_luminosity, d_L
+from src.SED_Models import nuFnu_LP, nuFnu_SBPL, nuLnu_LP, Fit_nuLnu_LP, Fit_nuLnu_SBPL
 
 def equal_count_bins(data, n_bins):
     data = np.array(data)
@@ -22,26 +13,44 @@ def equal_count_bins(data, n_bins):
     bins = np.quantile(data, quantiles)
     return bins
 
-def Luminosity_distance(z):
-    c = 3 * (10 ** 5) # km/s
-    H_0 = 73 # km/s
-    omega_m = 0.3
-    def f(x):
-        return 1 / np.sqrt(omega_m * (1+x)**3 + 1 - omega_m)
+def dLdE(dnde, z, log_E1, log_E2):
+    
+    E_rest_grid = np.logspace(log_E1, log_E2, 100)
+    E_obs = E_rest_grid / (1 + z)
 
-    integral, _ = quad(f, 1, 1 + z)
-    return (1 + z) * (c / H_0) * integral 
+    dnde_obs_vals = np.array([dnde(x) for x in E_obs])
+    dnde_rest = (1 + z) * dnde_obs_vals
 
-def nuLnu_LP(E, L0, alpha, beta, E0=1.0):
-    return L0 * (E / E0) ** (2 - alpha - beta * np.log(E / E0))
+    E2_dnde_rest = E_rest_grid**2 * dnde_rest * 1.602176634e-6
+    all_E2_dnde_space.append(E2_dnde_rest)
+    
+    Luminosity_Distance = d_L(z) * 3.085677581e24
+    L_SED = 4 * np.pi * Luminosity_Distance**2 * E2_dnde_rest
+    
+    return L_SED
 
-def dLdE(E, L0, alpha, beta, E0=1.0):
-    return nuLnu_LP(E, L0, alpha, beta, E0) / E
+def Jackknife_technique(SEDs):
+    N = SEDs.shape[0]
+        
+    jackknife_means = []
 
-catalog_dir = "/home/alab_student/Tim/Projects/Catalogs/"
+    for x in range(N):
+    
+        jk_logs = np.delete(SEDs, x, axis=0)
+        jk_mean = np.mean(jk_logs, axis=0)
+        jackknife_means.append(jk_mean)
+    
+    jackknife_means = np.array(jackknife_means)
+    jk_bar = np.mean(jackknife_means, axis=0)
+    jk_var = (N-1)/N * np.sum((jackknife_means - jk_bar)**2, axis=0)
+    jk_err = np.sqrt(jk_var)
+    
+    return jk_err
+
+catalog_dir = "/home/alab_student/Tim/Projects/MeV_Blazars/Data/"
 out_dir = "/home/alab_student/Tim/Projects/MeV_Blazars/Outputs/Template_SEDS/"
 
-params_catalog = Table.read(catalog_dir + 'Model_Param_LF_Masked.fits')
+params_catalog = Table.read(catalog_dir + 'SED_Selected_Model_Params.fits')
 
 fig, axes = plt.subplots(1, 3, figsize=(30, 9), sharex=True)
 
@@ -58,35 +67,20 @@ BLL_LP_Table = params_catalog[BLL_LP_Mask]
 BLL_SBPL_Mask = (params_catalog['Model'] == 'SBPL') & ((params_catalog['Class'] == 'bll') | (params_catalog['Class'] == 'BLL'))
 BLL_SBPL_Table = params_catalog[BLL_SBPL_Mask]
 
-# FSRQ Template SEDS
 print(f"Making FSRQ SED Templates for {len(FSRQ_LP_Table)} sources...")
 
 k_corr_lum_LP_FSRQ = []
 
 for i in range(len(FSRQ_LP_Table)):
-    E0 = float(FSRQ_LP_Table['E0'][i].tolist())
-    
-    N0 = float(FSRQ_LP_Table['N0'][i].tolist())
-    LP_Alpha = float(FSRQ_LP_Table['LP_Alpha'][i])
-    LP_Beta = float(FSRQ_LP_Table['LP_Beta'][i])
-    z = float(FSRQ_LP_Table['Redshift'][i])
-    
-    def dnde(E):
-        return N0 * (E / E0)**(-LP_Alpha - LP_Beta * np.log(E / E0))
-    
-    total_int_flux = energy_flux(dnde, E0, 1e6)
-    total_int_flux_rest = energy_flux(dnde, E0*(1+z), 1e6*(1+z))
-    
-    k_corr = total_int_flux_rest / total_int_flux
-    
-    d_L = Luminosity_distance(z)
-    
-    K_corr_lum = total_int_flux * k_corr * ((d_L*3.085677581e24)**2) * 4 * np.pi
-    k_corr_lum_LP_FSRQ.append(K_corr_lum)
+    params = [float(x) for x in [FSRQ_LP_Table['E0'][i], FSRQ_LP_Table['N0'][i], FSRQ_LP_Table['LP_Alpha'][i], FSRQ_LP_Table['LP_Beta'][i], FSRQ_LP_Table['Redshift'][i]]]
+    nuFnu_LP_source = partial(nuFnu_LP, E0=params[0], N0=params[1], alpha=params[2], beta=params[3])
+    k_corr_lum = K_Corrected_Band_luminosity(nuFnu = nuFnu_LP_source, z=params[4], E1=params[0], E2=1e6)
+    k_corr_lum_LP_FSRQ.append(k_corr_lum)
     
 FSRQ_LP_Lum_bins = equal_count_bins(k_corr_lum_LP_FSRQ,5)
-
 FSRQ_LP_Table['k_corr_lum'] = k_corr_lum_LP_FSRQ
+
+E_rest_grid = np.logspace(-2, 6, 100)
 
 avg_SED_all_FSRQ = []
 
@@ -124,21 +118,9 @@ for i in range(len(FSRQ_LP_Lum_bins)-1):
         LP_Alpha = float(Masked_FSRQ_LP_Table['LP_Alpha'][z])
         LP_Beta = float(Masked_FSRQ_LP_Table['LP_Beta'][z])
         redshift = float(Masked_FSRQ_LP_Table['Redshift'][z])
-    
-        def dnde(E):
-            return N0 * (E / E0)**(-LP_Alpha - LP_Beta * np.log(E / E0))
         
-        E_rest_grid = np.logspace(-2, 6, 100)
-        E_obs = E_rest_grid / (1 + redshift)
-
-        dnde_obs_vals = np.array([dnde(x) for x in E_obs])
-        dnde_rest = (1 + redshift) * dnde_obs_vals
-
-        E2_dnde_rest = E_rest_grid**2 * dnde_rest * 1.602176634e-6
-        all_E2_dnde_space.append(E2_dnde_rest)
-        
-        d_L = Luminosity_distance(redshift) * 3.085677581e24
-        L_SED = 4 * np.pi * d_L**2 * E2_dnde_rest
+        nuFnu_LP_source = partial(nuFnu_LP, E0=E0, N0=N0, alpha=LP_Alpha, beta=LP_Beta)
+        L_SED = dLdE(dnde=nuFnu_LP_source, z=redshift, log_E1=-2, log_E2=6)
         all_L_dnde_space.append(L_SED)
     
     log_SEDs = np.log10(all_L_dnde_space)
@@ -146,65 +128,38 @@ for i in range(len(FSRQ_LP_Lum_bins)-1):
     avg_SED = 10**avg_log_SED
     avg_SED_all_FSRQ.append(list(avg_SED))
     
-    N = log_SEDs.shape[0]
+    jackknife_errors = Jackknife_technique(log_SEDs)
     
-    jackknife_means = []
-    
-    for x in range(N):
-    
-        jk_logs = np.delete(log_SEDs, x, axis=0)
-        jk_mean = np.mean(jk_logs, axis=0)
-        jackknife_means.append(jk_mean)
-    
-    jackknife_means = np.array(jackknife_means)
-    jk_bar = np.mean(jackknife_means, axis=0)
-    jk_var = (N-1)/N * np.sum((jackknife_means - jk_bar)**2, axis=0)
-    jk_err = np.sqrt(jk_var)
-    
-    def log_model(E, L0, alpha, beta):
-        return np.log10(nuLnu_LP(E, L0, alpha, beta))
-
-    # Initial guesses
-    L0_guess = np.max(avg_SED)
-    alpha_guess = 2.0
-    beta_guess = 0.2
-
-    p0 = [L0_guess, alpha_guess, beta_guess]
-
-    popt, pcov = curve_fit(log_model, E_rest_grid, np.log10(avg_SED), p0=p0, maxfev=10000)
-
+    popt = Fit_nuLnu_LP(avg_SED=avg_SED, alpha_guess=2.0, beta_guess=0.2, energy_grid=E_rest_grid)
     L0_fit, alpha_fit, beta_fit = popt
+    print(popt)
     
     Avg_FSRQ_SED_alpha.append(alpha_fit)
     Avg_FSRQ_SED_beta.append(beta_fit)
     Avg_FSRQ_SED_L0.append(L0_fit)
     
-    model_SED = 10**log_model(E_rest_grid, *popt)
+    model_SED = nuLnu_LP(E_rest_grid, *popt)
 
     E_peak = E_rest_grid[np.argmax(model_SED)]
     L_peak = np.max(model_SED)
     print(E_peak)
-        
+    
     ax_fsrq.plot(E_rest_grid, avg_SED, label =f'{round(np.log10(FSRQ_LP_Lum_bins[i]),1)}-{round(np.log10(FSRQ_LP_Lum_bins[i+1]),1)}',color=FSRQ_colors[i])
-    ax_fsrq.fill_between(E_rest_grid, 10**(avg_log_SED-jk_err), 10**(avg_log_SED+jk_err), alpha=0.3, color=FSRQ_colors[i])
-
-    #ax_fsrq.plot(E_rest_grid, 10**log_model(E_rest_grid, *popt), color='black', linestyle='--')
+    #ax_fsrq.plot(E_rest_grid, model_SED, linestyle='--', color='black')
+    ax_fsrq.fill_between(E_rest_grid, 10**(avg_log_SED-jackknife_errors), 10**(avg_log_SED+jackknife_errors), alpha=0.3, color=FSRQ_colors[i])
     
     if z == len(Masked_FSRQ_LP_Table) - 1:
         handles, labels = ax_fsrq.get_legend_handles_labels()
         ax_fsrq.legend(handles, labels, loc='lower center', bbox_to_anchor=(0.5, -0.25), 
         ncol=3, fontsize=18, frameon=False, reverse=False, columnspacing=1.2, handletextpad=0.5)
     
-
     ax_fsrq.set_xscale('log')
     ax_fsrq.set_yscale('log')
     ax_fsrq.set_xlabel('Rest Frame Energy [MeV]',fontsize=21)
     ax_fsrq.set_ylabel(r'$E^2$dL/dE [$erg/s$]',fontsize=21)
     ax_fsrq.set_title("FSRQs", fontsize=24)
     ax_fsrq.tick_params(labelsize=18)
-    
-#plt.savefig(out_dir + 'FSRQ_SED_Templates.png', dpi=300, bbox_inches='tight')
-#plt.close()
+    #ax_fsrq.set_ylim(7e41, 1e50)
 
 Avg_FSRQ_params_Table = Table([Avg_FSRQ_SED_L_bin, Avg_FSRQ_SED_class, Avg_FSRQ_SED_SED_Class, Avg_FSRQ_SED_median_redshift, Avg_FSRQ_SED_L0, Avg_FSRQ_SED_alpha, Avg_FSRQ_SED_beta], names=['Luminosity_Bin', 'Class', 'SED_Type', 'Redshift', 'L0', 'alpha', 'beta'])
 
@@ -217,24 +172,17 @@ BLL_colors = [BLL_cmap(x) for x in np.linspace(0.4, 0.9, 3)]
 k_corr_lum_LP_BLL = []
 
 for i in range(len(BLL_LP_Table)):
+    Name = BLL_LP_Table['Name'][i]
     E0 = float(BLL_LP_Table['E0'][i].tolist())
     N0 = float(BLL_LP_Table['N0'][i].tolist())
     LP_Alpha = float(BLL_LP_Table['LP_Alpha'][i])
     LP_Beta = float(BLL_LP_Table['LP_Beta'][i])
     z = float(BLL_LP_Table['Redshift'][i])
     
-    def dnde(E):
-        return N0 * (E / E0)**(-LP_Alpha - LP_Beta * np.log(E / E0))
-    
-    total_int_flux = energy_flux(dnde, E0, 1e6)
-    total_int_flux_rest = energy_flux(dnde, E0*(1+z), 1e6*(1+z))
-    
-    k_corr = total_int_flux_rest / total_int_flux
-    
-    d_L = Luminosity_distance(z)
-    
-    K_corr_lum = total_int_flux * k_corr * ((d_L*3.085677581e24)**2) * 4 * np.pi
-    k_corr_lum_LP_BLL.append(K_corr_lum)
+    nuFnu_LP_source = partial(nuFnu_LP, E0=E0, N0=N0, alpha=LP_Alpha, beta=LP_Beta)
+    k_corr_lum = K_Corrected_Band_luminosity(nuFnu = nuFnu_LP_source, z=z, E1=E0, E2=1e6)
+    print(Name, k_corr_lum)
+    k_corr_lum_LP_BLL.append(k_corr_lum)
     
 BLL_LP_Lum_bins = equal_count_bins(k_corr_lum_LP_BLL,3)
 BLL_LP_Table['k_corr_lum'] = k_corr_lum_LP_BLL
@@ -273,59 +221,21 @@ for i in range(len(BLL_LP_Lum_bins)-1):
         LP_Beta = float(Masked_BLL_LP_Table['LP_Beta'][z])
         redshift = float(Masked_BLL_LP_Table['Redshift'][z])
 
-        def dnde(E):
-            return N0 * (E / E0)**(-LP_Alpha - LP_Beta * np.log(E / E0))
-        
-        E_rest_grid = np.logspace(-2, 6, 100)
-        E_obs = E_rest_grid / (1 + redshift)
-
-        dnde_obs_vals = np.array([dnde(x) for x in E_obs])
-        dnde_rest = (1 + redshift) * dnde_obs_vals
-
-        E2_dnde_rest = E_rest_grid**2 * dnde_rest * 1.602176634e-6
-        all_E2_dnde_space.append(E2_dnde_rest)
-        
-        d_L = Luminosity_distance(redshift) * 3.085677581e24
-        L_SED = 4 * np.pi * d_L**2 * E2_dnde_rest
+        nuFnu_LP_source = partial(nuFnu_LP, E0=E0, N0=N0, alpha=LP_Alpha, beta=LP_Beta)
+        L_SED = dLdE(dnde=nuFnu_LP_source, z=redshift, log_E1=-2, log_E2=6)
         all_L_dnde_space.append(L_SED)
-    
+        
     log_SEDs = np.log10(all_L_dnde_space)
     avg_log_SED = np.mean(log_SEDs, axis=0)
     avg_SED = 10**avg_log_SED
-    
-    N = log_SEDs.shape[0]
-
-    jackknife_means = []
-
-    for x in range(N):
-
-        jk_logs = np.delete(log_SEDs, x, axis=0)
-        jk_mean = np.mean(jk_logs, axis=0)
-        jackknife_means.append(jk_mean)
-
-    jackknife_means = np.array(jackknife_means)
-    jk_bar = np.mean(jackknife_means, axis=0)
-    jk_var = (N-1)/N * np.sum((jackknife_means - jk_bar)**2, axis=0)
-    jk_err = np.sqrt(jk_var)
-    
     avg_SED_all_BLL_LP.append(list(avg_SED))
     
-    def log_model(E, L0, alpha, beta):
-        return np.log10(nuLnu_LP(E, L0, alpha, beta))
-
-    # Initial guesses
-    L0_guess = np.max(avg_SED)
-    alpha_guess = 2.0
-    beta_guess = 0.2
-
-    p0 = [L0_guess, alpha_guess, beta_guess]
-
-    popt, pcov = curve_fit(log_model, E_rest_grid, np.log10(avg_SED), p0=p0, maxfev=10000)
-
+    jackknife_errors = Jackknife_technique(log_SEDs)
+    
+    popt = Fit_nuLnu_LP(avg_SED=avg_SED, alpha_guess=2.0, beta_guess=0.2, energy_grid=E_rest_grid)
     L0_fit, alpha_fit, beta_fit = popt
     
-    model_SED = 10**log_model(E_rest_grid, *popt)
-
+    model_SED = nuLnu_LP(E_rest_grid, *popt)
     E_peak = E_rest_grid[np.argmax(model_SED)]
     L_peak = np.max(model_SED)
     print(E_peak)
@@ -335,8 +245,8 @@ for i in range(len(BLL_LP_Lum_bins)-1):
     Avg_BLL_LP_SED_L0.append(L0_fit)
     
     ax_bll_lp.plot(E_rest_grid, avg_SED, label =f'{round(np.log10(BLL_LP_Lum_bins[i]),1)}-{round(np.log10(BLL_LP_Lum_bins[i+1]),1)}',color=BLL_colors[i])
-    ax_bll_lp.fill_between(E_rest_grid, 10**(avg_log_SED-jk_err), 10**(avg_log_SED+jk_err), alpha=0.3, color=BLL_colors[i])
-    #ax_bll_lp.plot(E_rest_grid, 10**log_model(E_rest_grid, *popt), color='black', linestyle='--')
+    #ax_bll_lp.plot(E_rest_grid, model_SED, linestyle='--', color='black')
+    ax_bll_lp.fill_between(E_rest_grid, 10**(avg_log_SED-jackknife_errors), 10**(avg_log_SED+jackknife_errors), alpha=0.3, color=BLL_colors[i])
     
     if z == len(Masked_BLL_LP_Table) - 1:
         handles, labels = ax_bll_lp.get_legend_handles_labels()
@@ -347,12 +257,9 @@ for i in range(len(BLL_LP_Lum_bins)-1):
     ax_bll_lp.set_yscale('log')
     ax_bll_lp.set_xlabel('Rest Frame Energy [MeV]', fontsize=21)
     ax_bll_lp.set_ylabel(r'$E^2$dL/dE [$erg/s$]', fontsize=21)
-    ax_bll_lp.set_ylim(0.9e42,6e47)
+    ax_bll_lp.set_ylim(7e41, 1e50)
     ax_bll_lp.set_title("LP BLLs", fontsize=24)
     ax_bll_lp.tick_params(labelsize=18)
-
-#plt.savefig(out_dir + 'LSP_BLL_SED_Templates.png', bbox_inches='tight', dpi=300)
-#plt.close()
 
 Avg_BLL_LSP_params_Table = Table([Avg_BLL_LP_SED_L_bin, Avg_BLL_LP_SED_class, Avg_BLL_LP_SED_SED_Class,Avg_BLL_LP_SED_median_redshift, Avg_BLL_LP_SED_L0, Avg_BLL_LP_SED_alpha, Avg_BLL_LP_SED_beta], names=['Luminosity_Bin', 'Class', 'SED_Type','Redshift', 'L0', 'alpha', 'beta'])
 
@@ -370,21 +277,10 @@ for i in range(len(BLL_SBPL_Table)):
     SBPL_Beta = float(BLL_SBPL_Table['SBPL_Beta'][i])
     z = float(BLL_SBPL_Table['Redshift'][i])
     
-    def dnde(E, E0=E0, N0=N0, Gam1=SBPL_Index1, Gam2=SBPL_Index2, beta=-SBPL_Beta, E_Break=SBPL_Break_Energy):
-        term1 = (E / E0)**(-Gam1)
-        term2 = (1 + (E / E_Break)**((Gam2 - Gam1) / beta))**(-beta)
-        return N0 * term1 * term2
-    
-    total_int_flux = energy_flux(dnde, E0, 1e6)
-    total_int_flux_rest = energy_flux(dnde, E0*(1+z), 1e6*(1+z))
-    
-    k_corr = total_int_flux_rest / total_int_flux
-    
-    d_L = Luminosity_distance(z)
-    
-    K_corr_lum = total_int_flux * k_corr * ((d_L*3.085677581e24)**2) * 4 * np.pi
-    k_corr_lum_SBPL_BLL.append(K_corr_lum)
-    
+    nuFnu_SBPL_source = partial(nuFnu_SBPL, E0=E0, N0=N0, Gam1=SBPL_Index1, Gam2=SBPL_Index2, beta=-SBPL_Beta, E_Break=SBPL_Break_Energy)
+    k_corr_lum = K_Corrected_Band_luminosity(nuFnu = nuFnu_SBPL_source, z=z, E1=E0, E2=1e6)
+    k_corr_lum_SBPL_BLL.append(k_corr_lum)
+        
 BLL_SBPL_Lum_bins = equal_count_bins(k_corr_lum_SBPL_BLL,3)
 
 BLL_SBPL_Table['k_corr_lum'] = k_corr_lum_SBPL_BLL
@@ -394,6 +290,7 @@ Avg_BLL_HSP_SED_L0 = []
 Avg_BLL_HSP_SED_Eb = []
 Avg_BLL_HSP_SED_alpha1 = []
 Avg_BLL_HSP_SED_alpha2 = []
+Avg_BLL_HSP_beta = []
 Avg_BLL_HSP_SED_class = []
 Avg_BLL_HSP_SED_SED_Class = []
 Avg_BLL_HSP_SED_median_redshift = []
@@ -425,89 +322,41 @@ for i in range(len(BLL_SBPL_Lum_bins)-1):
         SBPL_Beta = float(Masked_BLL_SBPL_Table['SBPL_Beta'][z])
         redshift = float(Masked_BLL_SBPL_Table['Redshift'][z])
 
-        def dnde(E, E0=E0, N0=N0, Gam1=SBPL_Index1, Gam2=SBPL_Index2, beta=-SBPL_Beta, E_Break=SBPL_Break_Energy):
-            term1 = (E / E0)**(-Gam1)
-            term2 = (1 + (E / E_Break)**((Gam2 - Gam1) / beta))**(-beta)
-            return N0 * term1 * term2
-    
-        E_rest_grid = np.logspace(-2, 6, 100)
-        E_obs = E_rest_grid / (1 + redshift)
-
-        dnde_obs_vals = np.array([dnde(x) for x in E_obs])
-        dnde_rest = (1 + redshift) * dnde_obs_vals
-
-        E2_dnde_rest = E_rest_grid**2 * dnde_rest * 1.602176634e-6
-        all_E2_dnde_space.append(E2_dnde_rest)
-        
-        d_L = Luminosity_distance(redshift) * 3.085677581e24
-        L_SED = 4 * np.pi * d_L**2 * E2_dnde_rest
+        nuFnu_SBPL_source = partial(nuFnu_SBPL, E0=E0, N0=N0, Gam1=SBPL_Index1, Gam2=SBPL_Index2, beta=-SBPL_Beta, E_Break=SBPL_Break_Energy)
+        L_SED = dLdE(dnde=nuFnu_SBPL_source, z=redshift, log_E1=-2, log_E2=6)
         all_L_dnde_space.append(L_SED)
-    
+        
     log_SEDs = np.log10(all_L_dnde_space)
     avg_log_SED = np.mean(log_SEDs, axis=0)
     avg_SED = 10**avg_log_SED
     
-    N = log_SEDs.shape[0]
-    
-    jackknife_means = []
-    
-    for x in range(N):
-    
-        jk_logs = np.delete(log_SEDs, x, axis=0)
-        jk_mean = np.mean(jk_logs, axis=0)
-        jackknife_means.append(jk_mean)
-    
-    jackknife_means = np.array(jackknife_means)
-    jk_bar = np.mean(jackknife_means, axis=0)
-    jk_var = (N-1)/N * np.sum((jackknife_means - jk_bar)**2, axis=0)
-    jk_err = np.sqrt(jk_var)
+    jackknife_errors = Jackknife_technique(log_SEDs)
         
-    
-    def nuLnu_SBPL(E, L0, Eb, alpha1, alpha2, s):
-        term = (E / Eb)
-        return L0 * term**(-alpha1) * (1 + term**((alpha2 - alpha1)/s))**(-s)
-    
-    def SBPL_fit(E, L0, Eb, alpha1, alpha2):
-        s = -1
-        return nuLnu_SBPL(E, L0, Eb, alpha1, alpha2, s)
-    
-    def log_SBPL(E, L0, Eb, alpha1, alpha2):
-        return np.log10(SBPL_fit(E, L0, Eb, alpha1, alpha2))
+    popt = Fit_nuLnu_SBPL(avg_SED, alpha1_guess=1.5, alpha2_guess=2.5, beta_guess=-2, energy_grid=E_rest_grid)
 
-    
-    L0_guess = np.max(avg_SED)
-    Eb_guess = E_rest_grid[np.argmax(avg_SED)]
-    alpha1_guess = 1.5
-    alpha2_guess = 2.5
-
-    p0 = [L0_guess, Eb_guess, alpha1_guess, alpha2_guess]
-
-    popt, pcov = curve_fit(log_SBPL, E_rest_grid, np.log10(avg_SED), p0=p0, maxfev=10000)
-
-    L0_fit, Eb_fit, alpha1_fit, alpha2_fit = popt
-    print(f'L0: {L0_fit}, Eb: {Eb_fit}, alpha1: {alpha1_fit}, alpha2: {alpha2_fit}')
+    L0_fit, Eb_fit, alpha1_fit, alpha2_fit, beta_fit = popt
+    print(f'L0: {L0_fit}, Eb: {Eb_fit}, alpha1: {alpha1_fit}, alpha2: {alpha2_fit}, beta: {beta_fit}')
     Avg_BLL_HSP_SED_L0.append(L0_fit)
     Avg_BLL_HSP_SED_Eb.append(Eb_fit)
     Avg_BLL_HSP_SED_alpha1.append(alpha1_fit)
     Avg_BLL_HSP_SED_alpha2.append(alpha2_fit)
-    
+    Avg_BLL_HSP_beta.append(beta_fit)
     ax_bll_hsp.plot(E_rest_grid, avg_SED, label =f'{round(np.log10(BLL_SBPL_Lum_bins[i]),1)}-{round(np.log10(BLL_SBPL_Lum_bins[i+1]),1)}',color=BLL_colors[i])
-    ax_bll_hsp.fill_between(E_rest_grid, 10**(avg_log_SED-jk_err), 10**(avg_log_SED+jk_err), alpha=0.3, color=BLL_colors[i])
-
-    #ax_bll_hsp.plot(E_rest_grid, 10**log_SBPL(E_rest_grid, *popt), color='black', linestyle='--')
+    #ax_bll_hsp.plot(E_rest_grid, nuLnu_SBPL(E_rest_grid, *popt), linestyle='--', color='black')
+    ax_bll_hsp.fill_between(E_rest_grid, 10**(avg_log_SED-jackknife_errors), 10**(avg_log_SED+jackknife_errors), alpha=0.3, color=BLL_colors[i])
     
     if z == len(Masked_BLL_SBPL_Table) - 1:
         handles, labels = ax_bll_hsp.get_legend_handles_labels()
         ax_bll_hsp.legend(handles, labels, loc='lower center', bbox_to_anchor=(0.5, -0.25), 
         ncol=2, fontsize=18, frameon=False, reverse=False, columnspacing=1.2, handletextpad=0.5)
     
-    #ax_bll_hsp.legend(loc='lower left', fontsize=9)
     ax_bll_hsp.set_xscale('log')
     ax_bll_hsp.set_yscale('log')
     ax_bll_hsp.set_xlabel('Rest Frame Energy [MeV]', fontsize=21)
     ax_bll_hsp.set_ylabel(r'$E^2$dL/dE [$erg/s$]',fontsize=21)
     ax_bll_hsp.set_title('SBPL BLLs', fontsize=24)
     ax_bll_hsp.tick_params(labelsize=18)
+    ax_bll_hsp.set_ylim(7e41, 1e50)
 
 fig.tight_layout()
 
@@ -517,7 +366,7 @@ plt.savefig(out_dir + 'SED_Templates.pdf', dpi=300, bbox_inches='tight')
 plt.show()
 plt.close()
 
-Avg_BLL_HSP_params_Table = Table([Avg_BLL_HSP_SED_L_bin, Avg_BLL_HSP_SED_class, Avg_BLL_HSP_SED_SED_Class, Avg_BLL_HSP_SED_median_redshift, Avg_BLL_HSP_SED_L0, Avg_BLL_HSP_SED_Eb, Avg_BLL_HSP_SED_alpha1, Avg_BLL_HSP_SED_alpha2], names=['Luminosity_Bin', 'Class', 'SED_Type', 'Redshift', 'L0', 'Eb', 'alpha1', 'alpha2'])
+Avg_BLL_HSP_params_Table = Table([Avg_BLL_HSP_SED_L_bin, Avg_BLL_HSP_SED_class, Avg_BLL_HSP_SED_SED_Class, Avg_BLL_HSP_SED_median_redshift, Avg_BLL_HSP_SED_L0, Avg_BLL_HSP_SED_Eb, Avg_BLL_HSP_SED_alpha1, Avg_BLL_HSP_SED_alpha2, Avg_BLL_HSP_beta], names=['Luminosity_Bin', 'Class', 'SED_Type', 'Redshift', 'L0', 'Eb', 'alpha1', 'alpha2', 'beta'])
 
 SED_Template_Params_Table = vstack([Avg_FSRQ_params_Table, Avg_BLL_LSP_params_Table, Avg_BLL_HSP_params_Table])
 SED_Template_Params_Table.write(catalog_dir + 'SED_Template_Params_Table.fits', overwrite=True)
