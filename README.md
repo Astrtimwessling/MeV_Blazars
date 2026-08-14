@@ -26,6 +26,11 @@ These MeV instruments will have exciting abilities to observe many types of sour
 ### Runner Scripts
 
 ```
+Prep_MeV_Blazar_Catalog.py
+```
+
+
+```
 Blazar_Fitter.py --config Configs/Blazar_Fitter_config_LP.yaml
 ```
 
