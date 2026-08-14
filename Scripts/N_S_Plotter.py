@@ -1,18 +1,20 @@
 from astropy.table import Table
+from src.plt_params import set_rc_params
 
 import numpy as np
 import matplotlib.pyplot as plt
 
-catalog_dir = "/home/alab_student/Tim/Projects/MeV_Blazars/Output/"
+catalog_dir = "/home/alab_student/Tim/Projects/MeV_Blazars/Data/"
 outdir = '/home/alab_student/Tim/Projects/MeV_Blazars/Outputs/N_S_Plots'
 
 # Extract N(>S) results for each luminosity function model.
 
-Luminosity_Function_N_S_Results = Table.read(catalog_dir + 'Monochromatic_Luminosity_Function_Results.fits')
+Luminosity_Function_N_S_Results = Table.read(catalog_dir + 'N_S_LF_Output.fits')
 
 N_S_Rajguru = [Luminosity_Function_N_S_Results.columns[i].tolist() for i in [10,11,12,13,14,15,16,17,18]]
 N_S_Marcotulli = [Luminosity_Function_N_S_Results.columns[i].tolist() for i in [19,20,21,22,23,24,25,26,27]]
-N_S_Ajello = [Luminosity_Function_N_S_Results.columns[i].tolist() for i in [28,29,30,31,32,33,34,35,36]]
+N_S_Ajello = [Luminosity_Function_N_S_Results.columns[i+9].tolist() for i in [28,29,30,31,32,33,34,35,36]]
+N_S_Toda = [Luminosity_Function_N_S_Results.columns[i].tolist() for i in [1,2,3,4,5,6,7,8,9]]
 
 Sensitivity_List = Luminosity_Function_N_S_Results['Sensitivity'].tolist()
 
@@ -47,6 +49,8 @@ COSI_Sensitivity = Sensitivity_Data['COSI_Sensitivity'].tolist()
 
 # Plot N(>S) for selected energies.
 
+set_rc_params(fontsize=18)
+
 selected_indices = [1, 2, 4, 5, 7, 8]
 
 sens = np.array(Sensitivity_List)
@@ -67,9 +71,10 @@ for ax, i in zip(axes, selected_indices):
     ax.stairs(N_S_Counts_FSRQ, edges, color='blue', label='FSRQ', baseline=None)
     ax.stairs(N_S_Counts_BLL, edges, color='red', label='BLL', baseline=None)
     
-    ax.plot(Sensitivity_List, N_S_Marcotulli[i], label='Marcotulli al. (2022) BAT FSRQ LDDE', linestyle='--', color='blue')
+    #ax.plot(Sensitivity_List, N_S_Marcotulli[i], label='Marcotulli al. (2022) BAT FSRQ LDDE', linestyle='--', color='blue')
     ax.plot(Sensitivity_List, N_S_Rajguru[i], label='Rajguru et al. (2025) LAT FSRQ LDDE', linestyle='-.', color='blue')
     ax.plot(Sensitivity_List, N_S_Ajello[i], label='Ajello et al. (2013) LAT BLL LDDE', linestyle='--', color='red')
+    ax.plot(Sensitivity_List, N_S_Toda[i], label='Toda et al. (2020) BAT FSRQ LDDE', linestyle='--',color='blue')
     
     ax.axvline(GRAMS_Balloon_Sensitivity[i], linestyle='--', color='grey')
     ax.axvline(GRAMS_Satellite_Sensitivity[i], linestyle='-.', color='grey')
@@ -83,14 +88,14 @@ for ax, i in zip(axes, selected_indices):
     ax.set_yscale('log')
     
     ax.axhline(y=1, color='black', linestyle='--', label='1 Source Detection')
-    ax.tick_params(labelsize=14)
-    ax.set_title(f"{Select_Energy_Values[i]} MeV", fontsize=17)
+    ax.tick_params()
+    ax.set_title(f"{Select_Energy_Values[i]} MeV")
     
 for ax in axes:
     ax.label_outer()
 
-fig.supxlabel(r'$S$ [erg/cm$^{2}$/s]', y=0.01, fontsize=17)
-fig.supylabel(r'N(>S) [4$\pi$ str]', fontsize=15)
+fig.supxlabel(r'$S$ [erg/cm$^{2}$/s]', y=0.019, x=0.53)
+fig.supylabel(r'N($>$S) [4$\pi$ str]')
 
 handles, labels = axes[0].get_legend_handles_labels()
 
@@ -105,7 +110,7 @@ extra_lines = [
 handles += extra_lines
 labels += [l.get_label() for l in extra_lines]
 
-fig.legend(handles, labels, loc='lower center', bbox_to_anchor=(0.5, -0.055), ncol=4, fontsize=13, frameon=False, reverse=False, columnspacing=1.2, handletextpad=0.5)
+fig.legend(handles, labels, loc='lower center', bbox_to_anchor=(0.53, -0.065), ncol=4, frameon=False, reverse=False, columnspacing=1.2, handletextpad=0.5)
 
 plt.ylim(0.5,10000)
 plt.tight_layout()
@@ -135,7 +140,7 @@ for i in selected_indices:
     ax.stairs(N_S_Counts_FSRQ, edges, color='blue', label='FSRQ', baseline=None)
     ax.stairs(N_S_Counts_BLL, edges, color='red', label='BLL', baseline=None)
 
-    ax.plot(Sensitivity_List, N_S_Marcotulli[i], label='Marcotulli al. (2022) BAT FSRQ LDDE', linestyle='--', color='blue')
+    ax.plot(Sensitivity_List, N_S_Marcotulli[i], label='Marcotulli et al. (2022) BAT FSRQ LDDE', linestyle='--', color='blue')
     ax.plot(Sensitivity_List, N_S_Rajguru[i], label='Rajguru et al. (2025) LAT FSRQ LDDE', linestyle='-.', color='blue')
     ax.plot(Sensitivity_List, N_S_Ajello[i], label='Ajello et al. (2013) LAT BLL LDDE', linestyle='--', color='red')
 
@@ -171,7 +176,7 @@ for i in selected_indices:
     handles += extra_lines
     labels += [l.get_label() for l in extra_lines]
 
-    ax.legend(handles, labels, loc='center left', bbox_to_anchor=(1.02, 0.5), ncol=1, fontsize=13, frameon=False, handletextpad=0.5)
+    ax.legend(handles, labels, loc='center left', bbox_to_anchor=(1.02, 0.5), ncol=1, fontsize=15, frameon=False, handletextpad=0.5)
 
     plt.tight_layout()
 

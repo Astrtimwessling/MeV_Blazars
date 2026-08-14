@@ -8,7 +8,10 @@ catalog_dir = "/home/alab_student/Tim/Projects/MeV_Blazars/Data/"
 
 Cross_Match_Catalog = Table.read(catalog_dir + 'cross_match_updated.fits')
 Swift_157m_Catalog = Table.read(catalog_dir + "Swift_BAT_157m_Catalog_FITS.fits")
+Fermi_LAT_4FGL_DR4 = Table.read(catalog_dir + '4FGLDR4.fit', hdu=1)
 Fermi_LAC_DR3 = Table.read(catalog_dir + "Fermi_LAC_DR3.fits")
+
+print(Cross_Match_Catalog.colnames)
 
 # Apply Firm Blazar Mask to Cross-Matched Catalog
 
@@ -24,8 +27,19 @@ fermi_redshifts = []
 fermi_SED_classes = []
 syn_peak_energies = []
 syn_peak_flux = []
+flux_peak_ratio = []
 
 for i in Fermi_Names:
+    
+    # Extrapolate extra information from 4FGL-DR4
+    
+    LAT_catalog_mask = (i.ljust(28) == Fermi_LAT_4FGL_DR4['ASSOC1'])
+    LAT_catalog_entry = Fermi_LAT_4FGL_DR4[LAT_catalog_mask]
+    
+    Flux_Ratio = (max(LAT_catalog_entry['Flux_History'].tolist()[0]) / np.mean(LAT_catalog_entry['Flux_History'].tolist()))
+    flux_peak_ratio.append(Flux_Ratio)
+    
+    # Extrapolate information from 4FGL-DR3
 
     AGN_catalog_mask = (i == Fermi_LAC_DR3['ASSOC1'])
     AGN_catalog_entry = Fermi_LAC_DR3[AGN_catalog_mask]
@@ -90,17 +104,18 @@ for i in Swift_names:
         
 # Import Selected Columns from Cross-Matched Catalog
         
-Imported_Colnames = ['flag', 'fermi_category_type', 'bat_category_type', 'bat_pindex', 'bat_pindex_errm', 'bat_pindex_errp', 'fermi_pindex_PL', 'fermi_pindex_PL_err', 'Energy', 'Energy_Flux', 'Energy_Flux_Err', 'fermi_ra', 'fermi_dec', 'bat_ra', 'bat_dec']
+Imported_Colnames = ['flag', 'fermi_category_type', 'bat_category_type', 'bat_pindex', 'bat_pindex_errm', 'bat_pindex_errp', 'fermi_pindex_PL', 'fermi_pindex_PL_err','bat_flux', 'bat_flux_errm', 'bat_flux_errp', 'fermi_flux', 'fermi_flux_err', 'Energy', 'Energy_Flux', 'Energy_Flux_Err', 'fermi_ra', 'fermi_dec', 'bat_ra', 'bat_dec']
 Imported_Columns = [Firmly_Cross_Matched_Blazars[x].tolist() for x in Imported_Colnames]
 
 Fermi_pindex_err = ['None' if i is None else i for i in Imported_Columns[7]]
 Swift_pIndex_err = list(zip(Imported_Columns[4], Imported_Columns[5]))
+Swift_Flux_err = list(zip(Imported_Columns[9], Imported_Columns[10]))
 
 catalog_id = list(range(1, len(Firmly_Cross_Matched_Blazars)+1))
 
 # Assemble!
 
-MeV_Blazar_Catalog = Table([catalog_id, Imported_Columns[0], Fermi_Names, Swift_names, Imported_Columns[1], Imported_Columns[2], fermi_SED_classes, Imported_Columns[11], Imported_Columns[12], Imported_Columns[13], Imported_Columns[14], fermi_redshifts, Swift_Redshift, Imported_Columns[6], Fermi_pindex_err, Imported_Columns[3], Swift_pIndex_err, Swift_Luminosity, syn_peak_energies, syn_peak_flux, Imported_Columns[8], Imported_Columns[9], Imported_Columns[10]], names = ['id','Match_Flag', 'Fermi_Counterpart_Name', 'Swift_Counterpart_Name', 'Fermi_Type', 'Swift_Type', 'SED_Class', 'Fermi_RA', 'Fermi_DEC','Swift_RA', 'Swift_DEC', 'Fermi_Redshift', 'Swift_Redshift', 'Fermi_Photon_Index', 'Fermi_Photon_Index_Err', 'Swift_Photon_Index', 'Swift_Photon_Index_Err', 'Log_Swift_Luminosity', 'Syn_Peak_Energy', 'Syn_Peak_Flux', 'Energy', 'Energy_Flux', 'Energy_Flux_Err'])
+MeV_Blazar_Catalog = Table([catalog_id, Imported_Columns[0], Fermi_Names, Swift_names, Imported_Columns[1], Imported_Columns[2], fermi_SED_classes, Imported_Columns[16], Imported_Columns[17], Imported_Columns[18], Imported_Columns[19], fermi_redshifts, Swift_Redshift, Imported_Columns[6], Fermi_pindex_err,  Imported_Columns[3], Swift_pIndex_err,  Imported_Columns[11], Imported_Columns[12], Imported_Columns[8], Swift_Flux_err, Swift_Luminosity, flux_peak_ratio, syn_peak_energies, syn_peak_flux, Imported_Columns[13], Imported_Columns[14], Imported_Columns[15]], names = ['id','Match_Flag', 'Fermi_Counterpart_Name', 'Swift_Counterpart_Name', 'Fermi_Type', 'Swift_Type', 'SED_Class', 'Fermi_RA', 'Fermi_DEC','Swift_RA', 'Swift_DEC', 'Fermi_Redshift', 'Swift_Redshift', 'Fermi_Photon_Index', 'Fermi_Photon_Index_Err', 'Swift_Photon_Index', 'Swift_Photon_Index_Err', 'Fermi_Flux', 'Fermi_Flux_err', 'Swift_Flux', 'Swift_Flux_err', 'Log_Swift_Luminosity', 'Flux_Ratio', 'Syn_Peak_Energy', 'Syn_Peak_Flux', 'Energy', 'Energy_Flux', 'Energy_Flux_Err'])
 
 MeV_Blazar_Catalog['Fermi_RA'].unit = 'deg'
 MeV_Blazar_Catalog['Fermi_DEC'].unit = 'deg'

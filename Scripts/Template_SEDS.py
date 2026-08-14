@@ -2,7 +2,8 @@ import matplotlib.pyplot as plt
 import numpy as np 
 
 from astropy.table import Table, vstack
-from functools import partial
+from functools import partial   
+from src.plt_params import set_rc_params
 
 from src.Luminosity_Formulas import K_Corrected_Band_luminosity, d_L
 from src.SED_Models import nuFnu_LP, nuFnu_SBPL, nuLnu_LP, Fit_nuLnu_LP, Fit_nuLnu_SBPL
@@ -51,6 +52,8 @@ catalog_dir = "/home/alab_student/Tim/Projects/MeV_Blazars/Data/"
 out_dir = "/home/alab_student/Tim/Projects/MeV_Blazars/Outputs/Template_SEDS/"
 
 params_catalog = Table.read(catalog_dir + 'SED_Selected_Model_Params.fits')
+
+set_rc_params(fontsize=26)
 
 fig, axes = plt.subplots(1, 3, figsize=(30, 9), sharex=True)
 
@@ -150,15 +153,15 @@ for i in range(len(FSRQ_LP_Lum_bins)-1):
     
     if z == len(Masked_FSRQ_LP_Table) - 1:
         handles, labels = ax_fsrq.get_legend_handles_labels()
-        ax_fsrq.legend(handles, labels, loc='lower center', bbox_to_anchor=(0.5, -0.25), 
-        ncol=3, fontsize=18, frameon=False, reverse=False, columnspacing=1.2, handletextpad=0.5)
+        ax_fsrq.legend(handles, labels, loc='lower center', bbox_to_anchor=(0.5, -0.32), 
+        ncol=3, frameon=False, reverse=False, columnspacing=1.2, handletextpad=0.5)
     
     ax_fsrq.set_xscale('log')
     ax_fsrq.set_yscale('log')
-    ax_fsrq.set_xlabel('Rest Frame Energy [MeV]',fontsize=21)
-    ax_fsrq.set_ylabel(r'$E^2$dL/dE [$erg/s$]',fontsize=21)
-    ax_fsrq.set_title("FSRQs", fontsize=24)
-    ax_fsrq.tick_params(labelsize=18)
+    ax_fsrq.set_xlabel('Rest Frame Energy [MeV]')
+    ax_fsrq.set_ylabel(r'$\mathrm{E^2}$dL/dE [$\mathrm{erg/s}$]')
+    ax_fsrq.set_title("FSRQs")
+    ax_fsrq.tick_params()
     #ax_fsrq.set_ylim(7e41, 1e50)
 
 Avg_FSRQ_params_Table = Table([Avg_FSRQ_SED_L_bin, Avg_FSRQ_SED_class, Avg_FSRQ_SED_SED_Class, Avg_FSRQ_SED_median_redshift, Avg_FSRQ_SED_L0, Avg_FSRQ_SED_alpha, Avg_FSRQ_SED_beta], names=['Luminosity_Bin', 'Class', 'SED_Type', 'Redshift', 'L0', 'alpha', 'beta'])
@@ -181,7 +184,6 @@ for i in range(len(BLL_LP_Table)):
     
     nuFnu_LP_source = partial(nuFnu_LP, E0=E0, N0=N0, alpha=LP_Alpha, beta=LP_Beta)
     k_corr_lum = K_Corrected_Band_luminosity(nuFnu = nuFnu_LP_source, z=z, E1=E0, E2=1e6)
-    print(Name, k_corr_lum)
     k_corr_lum_LP_BLL.append(k_corr_lum)
     
 BLL_LP_Lum_bins = equal_count_bins(k_corr_lum_LP_BLL,3)
@@ -234,6 +236,7 @@ for i in range(len(BLL_LP_Lum_bins)-1):
     
     popt = Fit_nuLnu_LP(avg_SED=avg_SED, alpha_guess=2.0, beta_guess=0.2, energy_grid=E_rest_grid)
     L0_fit, alpha_fit, beta_fit = popt
+    print(E0)
     
     model_SED = nuLnu_LP(E_rest_grid, *popt)
     E_peak = E_rest_grid[np.argmax(model_SED)]
@@ -250,16 +253,17 @@ for i in range(len(BLL_LP_Lum_bins)-1):
     
     if z == len(Masked_BLL_LP_Table) - 1:
         handles, labels = ax_bll_lp.get_legend_handles_labels()
-        ax_bll_lp.legend(handles, labels, loc='lower center', bbox_to_anchor=(0.5, -0.25), 
-        ncol=2, fontsize=18, frameon=False, reverse=False, columnspacing=1.2, handletextpad=0.5)
+        ax_bll_lp.legend(handles, labels, loc='lower center', bbox_to_anchor=(0.5, -0.32), 
+        ncol=2, frameon=False, reverse=False, columnspacing=1.2, handletextpad=0.5)
     
     ax_bll_lp.set_xscale('log')
     ax_bll_lp.set_yscale('log')
-    ax_bll_lp.set_xlabel('Rest Frame Energy [MeV]', fontsize=21)
-    ax_bll_lp.set_ylabel(r'$E^2$dL/dE [$erg/s$]', fontsize=21)
+    ax_bll_lp.set_xlabel('Rest Frame Energy [MeV]')
+    #ax_bll_lp.set_ylabel(r'$E^2$dL/dE [$erg/s$]', fontsize=21)
+    ax_bll_lp.tick_params(axis='y', labelleft=False)
     ax_bll_lp.set_ylim(7e41, 1e50)
-    ax_bll_lp.set_title("LP BLLs", fontsize=24)
-    ax_bll_lp.tick_params(labelsize=18)
+    ax_bll_lp.set_title("LP BLLs")
+    ax_bll_lp.tick_params()
 
 Avg_BLL_LSP_params_Table = Table([Avg_BLL_LP_SED_L_bin, Avg_BLL_LP_SED_class, Avg_BLL_LP_SED_SED_Class,Avg_BLL_LP_SED_median_redshift, Avg_BLL_LP_SED_L0, Avg_BLL_LP_SED_alpha, Avg_BLL_LP_SED_beta], names=['Luminosity_Bin', 'Class', 'SED_Type','Redshift', 'L0', 'alpha', 'beta'])
 
@@ -347,15 +351,16 @@ for i in range(len(BLL_SBPL_Lum_bins)-1):
     
     if z == len(Masked_BLL_SBPL_Table) - 1:
         handles, labels = ax_bll_hsp.get_legend_handles_labels()
-        ax_bll_hsp.legend(handles, labels, loc='lower center', bbox_to_anchor=(0.5, -0.25), 
-        ncol=2, fontsize=18, frameon=False, reverse=False, columnspacing=1.2, handletextpad=0.5)
+        ax_bll_hsp.legend(handles, labels, loc='lower center', bbox_to_anchor=(0.5, -0.32 ), 
+        ncol=2, frameon=False, reverse=False, columnspacing=1.2, handletextpad=0.5)
     
     ax_bll_hsp.set_xscale('log')
     ax_bll_hsp.set_yscale('log')
-    ax_bll_hsp.set_xlabel('Rest Frame Energy [MeV]', fontsize=21)
-    ax_bll_hsp.set_ylabel(r'$E^2$dL/dE [$erg/s$]',fontsize=21)
-    ax_bll_hsp.set_title('SBPL BLLs', fontsize=24)
-    ax_bll_hsp.tick_params(labelsize=18)
+    ax_bll_hsp.set_xlabel('Rest Frame Energy [MeV]')
+    #ax_bll_hsp.set_ylabel(r'$E^2$dL/dE [$erg/s$]',fontsize=21)
+    ax_bll_hsp.tick_params(axis='y', labelleft=False)
+    ax_bll_hsp.set_title('SBPL BLLs')
+    ax_bll_hsp.tick_params()
     ax_bll_hsp.set_ylim(7e41, 1e50)
 
 fig.tight_layout()

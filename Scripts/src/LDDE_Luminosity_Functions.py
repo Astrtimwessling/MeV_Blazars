@@ -76,6 +76,24 @@ def LDDE_BLL1(L,z, A=9.2*1e2*10**-13, L_c=2.43*10**48, gam1=1.12, gam2=3.71, z_c
     
     return term1 * term2 * term3 * gamma_integral
 
+def LDDE_BLL2(L,z, A=3.39*1e4*10**-13, L_c=0.28*10**48, gam1=0.27, gam2=1.86, z_c=1.34, p1=2.24, p2=-7.37, alpha=4.53e-2, mu=2.1, beta=6.46e-2, sigma=0.26,tau=4.92):
+    
+    gamma_min = 1.45
+    gamma_max = 2.8
+    
+    term1 = (A / (np.log(10) * L))
+    term2 = (((L/L_c)**gam1) + (L/L_c)**gam2)**(-1)
+    p1 = p1 + tau*(np.log10(L) - 46)
+    term3 = ((((1+z)/(1+(z_c*(L/10**48)**alpha)))**p1) + (((1+z)/(1+(z_c*(L/10**48)**alpha)))**p2))**-1
+    
+    mu_eff = mu + beta*(np.log10(L) - 46)
+    norm_min = (gamma_min - mu_eff) / (sigma * np.sqrt(2))
+    norm_max = (gamma_max - mu_eff) / (sigma * np.sqrt(2))
+    
+    gamma_integral = sigma * np.sqrt(2*np.pi) * 0.5 * (erf(norm_max) - erf(norm_min))
+    
+    return term1 * term2 * term3 * gamma_integral
+
 # Integrand for cumulative redshift distribution N(>z) calculation.
 
 def dN_dz(z, F_lim, E, LDDE, log_L_max, i, Lum_bin, nuLnu):
@@ -83,11 +101,8 @@ def dN_dz(z, F_lim, E, LDDE, log_L_max, i, Lum_bin, nuLnu):
     
     if LDDE == LDDE_BLL1:
         if nuLnu.func == nuLnu_SBPL:
-            if i != 0:
-                log_L_min = max(Lum_bin[0], log_L_min)
-            elif i == 0:
-                log_L_min = log_L_min
-                
+            log_L_min = max(Lum_bin[0], log_L_min)
+    
         elif nuLnu.func == nuLnu_LP:
             log_L_min = max(Lum_bin[0], log_L_min)
     else:
@@ -125,9 +140,8 @@ def N_S_integrand(nuLnu, LDDE, Energy, z_min, z_max, F_lim, Lum_bin, log_L_max, 
         log_L_min = np.log10(4*np.pi*(d_L_z*3.085677581e24)**2 * F_lim * kcorr_interp(z))
         if LDDE == LDDE_BLL1:
             if nuLnu.func == nuLnu_SBPL:
-                if i != 0:
-                    log_L_min = max(Lum_bin[0], log_L_min)
-                    
+                log_L_min = max(Lum_bin[0], log_L_min)
+
             elif nuLnu.func == nuLnu_LP:
                 log_L_min = max(Lum_bin[0], log_L_min)
         else:
@@ -135,7 +149,7 @@ def N_S_integrand(nuLnu, LDDE, Energy, z_min, z_max, F_lim, Lum_bin, log_L_max, 
                 log_L_min = max(Lum_bin[0], log_L_min)
                 
         return log_L_min
-                
+    
     def log_L_max_of_z(z):
             return log_L_max
         

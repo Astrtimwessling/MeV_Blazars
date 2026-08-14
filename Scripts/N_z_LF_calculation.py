@@ -8,7 +8,7 @@ from astropy.table import Table, hstack
 from scipy.integrate import quad
 from functools import partial
 
-from src.LDDE_Luminosity_Functions import LDDE1, LDDE2, LDDE3, LDDE_BLL1, dN_dz
+from src.LDDE_Luminosity_Functions import LDDE1, LDDE2, LDDE3, LDDE_BLL1, dN_dz, LDDE_BLL2
 from src.SED_Models import nuLnu_LP, nuLnu_SBPL
 
 start = time.time()
@@ -37,14 +37,15 @@ BLL_LP_Catalog = Catalog[LP_BLL_Mask]
 Sensitivity_Data = Table.read(config['Catalog_dir'] + 'Sensitivity_Data_Table.fits')
 
 GRAMS_Balloon_Energy = Sensitivity_Data['Energy'].tolist()
-GRAMS_Balloon_Sensitivity = Sensitivity_Data['GRAMS_Balloon_Sensitivity'].tolist()
-print(GRAMS_Balloon_Sensitivity)
-GRAMS_Satellite_Sensitivity = Sensitivity_Data['GRAMS_Satellite_Sensitivity'].tolist()
 
+GRAMS_Balloon_Sensitivity = Sensitivity_Data['GRAMS_Balloon_Sensitivity'].tolist()
+GRAMS_Satellite_Sensitivity = Sensitivity_Data['GRAMS_Satellite_Sensitivity'].tolist()
 newASTROGAM_sensitivity = Sensitivity_Data['newASTROGAM_Sensitivity'].tolist()
 AMEGO_X_sensitivity = Sensitivity_Data['AMEGO_X_Sensitivity'].tolist()
 
 z_space = list(np.linspace(0, 8, 100)) + [1, 2, 3, 4, 5, 6, 7]
+z_space_bll = list(np.linspace(0, 6, 100)) + [1, 1.5, 2.0, 2.5, 3, 4, 5]
+z_space_bll.sort()
 z_space.sort()
 
 GRAMS_Flux_Bins = [0.2, 0.5, 1, 2, 5, 10, 20, 50, 100]
@@ -76,7 +77,7 @@ for i in range(len(FSRQ_Catalog)):
     Alpha = FSRQ_Catalog[config['columns']['LP_Alpha']].tolist()[i]
     Beta = FSRQ_Catalog[config['columns']['LP_Beta']].tolist()[i]
     
-    nuLnu_LP_bin = partial(nuLnu_LP, L0=L0, alpha=Alpha, beta=Beta, E0=1.0)
+    nuLnu_LP_bin = partial(nuLnu_LP, L0=L0, alpha=Alpha, beta=Beta, E0=0.017)
 
     for f in range(len(GRAMS_Flux_Bins)):
         for zi in range(len(z_space)):
@@ -142,15 +143,15 @@ for i in range(len(BLL_Catalog)):
     nuLnu_SBPL_bin = partial(nuLnu_SBPL, L0=L0, Eb=Eb, alpha1=Index1, alpha2=Index2, s=Beta)
         
     for f in range(len(GRAMS_Flux_Bins)):
-        for zi in range(len(z_space)):
+        for zi in range(len(z_space_bll)):
             log_L_max = Lum_bin[1]
 
-            dN_dz_BLL_SBPL = partial(dN_dz, LDDE=LDDE_BLL1, log_L_max=log_L_max, i=i, Lum_bin=Lum_bin, nuLnu=nuLnu_SBPL_bin)
+            dN_dz_BLL_SBPL = partial(dN_dz, LDDE=LDDE_BLL2, log_L_max=log_L_max, i=i, Lum_bin=Lum_bin, nuLnu=nuLnu_SBPL_bin)
             
-            N_z_GRAMS_Balloon = quad(dN_dz_BLL_SBPL, z_space[zi], 8, args=(GRAMS_Balloon_Sensitivity[f], GRAMS_Flux_Bins[f]))[0] * 4 * np.pi
-            N_z_GRAMS_Satellite = quad(dN_dz_BLL_SBPL, z_space[zi], 8, args=(GRAMS_Satellite_Sensitivity[f], GRAMS_Flux_Bins[f]))[0] * 4 * np.pi
-            N_z_newASTROGAM = quad(dN_dz_BLL_SBPL, z_space[zi], 8, args=(newASTROGAM_sensitivity[f], GRAMS_Flux_Bins[f]))[0] * 4 * np.pi
-            N_z_AMEGO_X = quad(dN_dz_BLL_SBPL, z_space[zi], 8, args=(AMEGO_X_sensitivity[f], GRAMS_Flux_Bins[f]))[0] * 4 * np.pi
+            N_z_GRAMS_Balloon = quad(dN_dz_BLL_SBPL, z_space_bll[zi], 6, args=(GRAMS_Balloon_Sensitivity[f], GRAMS_Flux_Bins[f]))[0] * 4 * np.pi
+            N_z_GRAMS_Satellite = quad(dN_dz_BLL_SBPL, z_space_bll[zi], 6, args=(GRAMS_Satellite_Sensitivity[f], GRAMS_Flux_Bins[f]))[0] * 4 * np.pi
+            N_z_newASTROGAM = quad(dN_dz_BLL_SBPL, z_space_bll[zi], 6, args=(newASTROGAM_sensitivity[f], GRAMS_Flux_Bins[f]))[0] * 4 * np.pi
+            N_z_AMEGO_X = quad(dN_dz_BLL_SBPL, z_space_bll[zi], 6, args=(AMEGO_X_sensitivity[f], GRAMS_Flux_Bins[f]))[0] * 4 * np.pi
         
             N_z_GRAMS_Balloon_LDDE_BLL1[zi][f] += N_z_GRAMS_Balloon
             N_z_GRAMS_Satellite_LDDE_BLL1[zi][f] += N_z_GRAMS_Satellite
@@ -171,21 +172,21 @@ for i in range(len(BLL_LP_Catalog)):
     Alpha = BLL_LP_Catalog[config['columns']['LP_Alpha']].tolist()[i]
     Beta = BLL_LP_Catalog[config['columns']['LP_Beta']].tolist()[i]
     
-    nuLnu_LP_bin = partial(nuLnu_LP, L0=L0, alpha=Alpha, beta=Beta, E0=1.0)
+    nuLnu_LP_bin = partial(nuLnu_LP, L0=L0, alpha=Alpha, beta=Beta, E0=0.017)
     
     for f in range(len(GRAMS_Flux_Bins)):
-        for zi in range(len(z_space)):
+        for zi in range(len(z_space_bll)):
             if i != len(BLL_LP_Catalog) - 1:
                 log_L_max = Lum_bin[1]
             elif i == len(BLL_LP_Catalog) - 1:
                 log_L_max = 52
             
-            dN_dz_BLL_LP = partial(dN_dz, LDDE=LDDE_BLL1, log_L_max=log_L_max, i=i, Lum_bin=Lum_bin, nuLnu=nuLnu_LP_bin)
+            dN_dz_BLL_LP = partial(dN_dz, LDDE=LDDE_BLL2, log_L_max=log_L_max, i=i, Lum_bin=Lum_bin, nuLnu=nuLnu_LP_bin)
                 
-            N_z_GRAMS_Balloon = quad(dN_dz_BLL_LP, z_space[zi], 8, args=(GRAMS_Balloon_Sensitivity[f], GRAMS_Flux_Bins[f]))[0] * 4 * np.pi
-            N_z_GRAMS_Satellite = quad(dN_dz_BLL_LP, z_space[zi], 8, args=(GRAMS_Satellite_Sensitivity[f], GRAMS_Flux_Bins[f]))[0] * 4 * np.pi
-            N_z_newASTROGAM = quad(dN_dz_BLL_LP, z_space[zi], 8, args=(newASTROGAM_sensitivity[f], GRAMS_Flux_Bins[f]))[0] * 4 * np.pi
-            N_z_AMEGO_X = quad(dN_dz_BLL_LP, z_space[zi], 8, args=(AMEGO_X_sensitivity[f], GRAMS_Flux_Bins[f]))[0] * 4 * np.pi
+            N_z_GRAMS_Balloon = quad(dN_dz_BLL_LP, z_space_bll[zi], 6, args=(GRAMS_Balloon_Sensitivity[f], GRAMS_Flux_Bins[f]))[0] * 4 * np.pi
+            N_z_GRAMS_Satellite = quad(dN_dz_BLL_LP, z_space_bll[zi], 6, args=(GRAMS_Satellite_Sensitivity[f], GRAMS_Flux_Bins[f]))[0] * 4 * np.pi
+            N_z_newASTROGAM = quad(dN_dz_BLL_LP, z_space_bll[zi], 6, args=(newASTROGAM_sensitivity[f], GRAMS_Flux_Bins[f]))[0] * 4 * np.pi
+            N_z_AMEGO_X = quad(dN_dz_BLL_LP, z_space_bll[zi], 6, args=(AMEGO_X_sensitivity[f], GRAMS_Flux_Bins[f]))[0] * 4 * np.pi
 
             N_z_GRAMS_Balloon_LDDE_BLL1_LP[zi][f] += N_z_GRAMS_Balloon
             N_z_GRAMS_Satellite_LDDE_BLL1_LP[zi][f] += N_z_GRAMS_Satellite
@@ -203,7 +204,6 @@ N_z_newASTROGAM_BLL_LDDE_LP = list(zip(*N_z_newASTROGAM_LDDE_BLL1_LP))
 N_z_AMEGO_X_BLL_LDDE_LP = list(zip(*N_z_AMEGO_X_LDDE_BLL1_LP)) 
 
 N_z_GRAMS_Balloon_FSRQ_LDDE1 = list(zip(*N_z_GRAMS_Balloon_LDDE_FSRQ1))
-
 N_z_GRAMS_Satellite_FSRQ_LDDE1 = list(zip(*N_z_GRAMS_Satellite_LDDE_FSRQ1))
 N_z_newASTROGAM_FSRQ_LDDE1 = list(zip(*N_z_newASTROGAM_LDDE_FSRQ1))
 N_z_AMEGO_X_FSRQ_LDDE1 = list(zip(*N_z_AMEGO_X_LDDE_FSRQ1))
@@ -271,7 +271,7 @@ GRAMS_Satellite_N_z_Data_Output_Table_FSRQ3 = Table(N_z_GRAMS_Satellite_FSRQ_LDD
 newASTROGAM_N_z_Data_Output_Table_FSRQ3 = Table(N_z_newASTROGAM_FSRQ_LDDE3, names=newASTROGAM_Names_LDDE_FSRQ3)
 AMEGO_X_N_z_Data_Output_Table_FSRQ3 = Table(N_z_AMEGO_X_FSRQ_LDDE3, names=AMEGO_X_Names_LDDE_FSRQ3)
 
-Redshift_Table = Table([z_space], names=['Redshift'])
+Redshift_Table = Table([z_space, z_space_bll], names=['Redshift', 'BLL_Redshift'])
 
 N_z_Data_Output_Table = hstack([Redshift_Table, GRAMS_Balloon_N_z_Data_Output_Table_BLL, GRAMS_Satellite_N_z_Data_Output_Table_BLL, newASTROGAM_N_z_Data_Output_Table_BLL, AMEGO_X_N_z_Data_Output_Table_BLL, GRAMS_Balloon_N_z_Data_Output_Table_FSRQ1, GRAMS_Satellite_N_z_Data_Output_Table_FSRQ1, newASTROGAM_N_z_Data_Output_Table_FSRQ1, AMEGO_X_N_z_Data_Output_Table_FSRQ1, GRAMS_Balloon_N_z_Data_Output_Table_FSRQ2, GRAMS_Satellite_N_z_Data_Output_Table_FSRQ2, newASTROGAM_N_z_Data_Output_Table_FSRQ2, AMEGO_X_N_z_Data_Output_Table_FSRQ2, GRAMS_Balloon_N_z_Data_Output_Table_FSRQ3, GRAMS_Satellite_N_z_Data_Output_Table_FSRQ3, newASTROGAM_N_z_Data_Output_Table_FSRQ3, AMEGO_X_N_z_Data_Output_Table_FSRQ3])
 N_z_Data_Output_Table.write(config['Catalog_dir'] + 'N_z_LF_output.fits', overwrite=True)

@@ -14,9 +14,6 @@ Selected_Model_Flux_Estimates = []
 Selected_Model_MeV_Energies = []
 Selected_Model_Chi2 = []
 
-print(LP_Blazar_Fitting_Results.colnames)
-print(SBPL_Blazar_Fitting_Results.colnames)
-
 Swift_Redshift = MeV_Blazar_Catalog['Swift_Redshift'].tolist()
 Fermi_Redshift = MeV_Blazar_Catalog['Fermi_Redshift'].tolist()
 Redshift = [Swift_Redshift[x] if Swift_Redshift[x] != 'None' else Fermi_Redshift[x] for x in range(len(Swift_Redshift))]
@@ -33,6 +30,9 @@ LP_Reference_Flux = []
 LP_Alpha = []
 LP_Beta = []
 
+LP_chi2 = []
+LP_opposite_chi2 = []
+
 SBPL_Names = []
 SBPL_Class = []
 SBPL_SED_Class = []
@@ -45,20 +45,26 @@ SBPL_Index_2 = []
 SBPL_Break_Energy = []
 SBPL_Beta = []
 
+SBPL_chi2 = []
+SBPL_opposite_chi2 = []
+
 for i in range(len(MeV_Blazar_Catalog)):
     blazar_class = MeV_Blazar_Catalog['Fermi_Type'][i]
     blazar_SED_class = MeV_Blazar_Catalog['SED_Class'][i]
     blazar_name = MeV_Blazar_Catalog['Fermi_Counterpart_Name'][i]
     Selected_Model_MeV_Energies.append([0.2, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 50.0, 100.0])
     
-    if (blazar_class.upper() == 'FSRQ' and blazar_name != 'PMN J2010-2524') or (blazar_class.upper() == 'BLL' and blazar_SED_class == 'LSP') or (blazar_class.upper() == 'BCU' and blazar_SED_class == 'LSP' and blazar_name != 'PKS 0723-008') or (blazar_name == 'PMN J1310-5552') or (blazar_name == 'S5 0716+71'):
+    if (blazar_class.upper() == 'FSRQ') or (blazar_class.upper() == 'BLL' and blazar_SED_class == 'LSP') or (blazar_class.upper() == 'BCU' and blazar_SED_class == 'LSP') or (blazar_name == 'PMN J1310-5552') or (blazar_name == 'S5 0716+71'):
         Model = 'LP' 
         Estimated_Flux = [x * 1.602176634e-6 for x in LP_Blazar_Fitting_Results['Flux_MeV_GRAMS'][i].tolist()]
         Chi2 = LP_Blazar_Fitting_Results['Chi2'][i]
+        Opposite_Chi2 = SBPL_Blazar_Fitting_Results['Chi2'][i]
         
         Selected_Models.append(Model)
         Selected_Model_Flux_Estimates.append(Estimated_Flux)
         Selected_Model_Chi2.append(str(Chi2))
+        LP_chi2.append(Chi2)
+        SBPL_opposite_chi2.append(Opposite_Chi2)
         
         if Redshift[i] != 'None':
             LP_Names.append(blazar_name)
@@ -75,10 +81,13 @@ for i in range(len(MeV_Blazar_Catalog)):
         Model = 'SBPL' 
         Estimated_Flux = [x * 1.602176634e-6 for x in SBPL_Blazar_Fitting_Results['Flux_MeV_GRAMS'][i].tolist()]
         Chi2 = SBPL_Blazar_Fitting_Results['Chi2'][i]
+        Opposite_Chi2 = LP_Blazar_Fitting_Results['Chi2'][i]
         
         Selected_Models.append(Model)
         Selected_Model_Flux_Estimates.append(Estimated_Flux)
         Selected_Model_Chi2.append(str(Chi2))
+        SBPL_chi2.append(Chi2)
+        LP_opposite_chi2.append(Opposite_Chi2)
         
         if Redshift[i] != 'None':
             SBPL_Names.append(blazar_name)
@@ -97,10 +106,17 @@ for i in range(len(MeV_Blazar_Catalog)):
         Selected_Models.append('None')
         Selected_Model_Flux_Estimates.append([])
         Selected_Model_Chi2.append('None')
+        print(LP_Blazar_Fitting_Results['Chi2'][i], SBPL_Blazar_Fitting_Results['Chi2'][i])
+        
+print(np.mean(LP_chi2))
+print(np.mean(SBPL_chi2))
+
+print(np.mean(LP_opposite_chi2))
+print(np.mean(SBPL_opposite_chi2))
         
 MeV_Blazar_Catalog['MeV_Model'] = Selected_Models
 MeV_Blazar_Catalog['MeV_Energies'] = Selected_Model_MeV_Energies
-MeV_Blazar_Catalog['MeV_Flux_Estimates'] = np.array(Selected_Model_Flux_Estimates,dtype=object)
+MeV_Blazar_Catalog['MeV_Flux_Estimates'] = Selected_Model_Flux_Estimates
 MeV_Blazar_Catalog['MeV_Chi2'] = Selected_Model_Chi2
 
 MeV_Blazar_Catalog.write(catalog_dir + "MeV_Blazar_Catalog_v2_SED_Fits.fits", overwrite=True)
@@ -110,4 +126,3 @@ LP_Model_Params_Table = Table([LP_Names, LP_Class, LP_SED_Class, LP_Model, LP_Re
 
 Model_Params_Table = vstack([LP_Model_Params_Table, SBPL_Model_Params_Table])
 Model_Params_Table.write(catalog_dir + 'SED_Selected_Model_Params.fits', overwrite=True)
-print(len(Model_Params_Table))

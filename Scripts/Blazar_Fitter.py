@@ -12,6 +12,9 @@ from gammapy.estimators import FluxPoints
 from gammapy.datasets import Datasets, FluxPointsDataset
 from gammapy.modeling import Fit
 from gammapy.modeling.models import LogParabolaSpectralModel, SkyModel, SmoothBrokenPowerLawSpectralModel
+from src.plt_params import set_rc_params
+
+set_rc_params()
 
 def Flux_Err(alpha, beta, norm, ref, alpha_err, beta_err, norm_err, ref_err, E_unit=u.Unit('MeV')):
     def Flux(alpha, beta, norm, ref):
@@ -80,31 +83,48 @@ chi2_results = []
 reference_energy = []
 reference_flux = []
 
+print(energy_bands[0])
+
 for i in range(len(Catalog)):
 
     energy = energy_bands[i]
     flux = energy_flux_bands[i]
     flux_err = energy_flux_bands_err[i]
-
-    if source_names[i] == 'B3 0133+388' or source_names[i] == 'PG 1553+113':
-        energy_band = energy[:-1]
-        flux_band = flux[:-1]
-        flux_band_err = [flux_err[0][:-1], flux_err[1][:-1]]
-        
-    else:
-        energy_band = energy
-        flux_band = flux
-        flux_band_err = flux_err
-
+    
     is_ul = []
 
-    for x in range(len(flux_band)):
-        if flux_band[x] < 0:
+    for x in range(len(flux)):
+        if flux[x] < 0:
             is_ul.append(True)
         else:
             is_ul.append(False)
 
-    fluxpoints_table = Table([energy_band, flux_band, flux_band_err[0], flux_band_err[1], is_ul], names = ['e_ref', 'e2dnde', 'e2dnde_errn', 'e2dnde_errp', 'is_ul'])
+    if source_names[i] == 'B3 0133+388' or source_names[i] == 'PG 1553+113':
+        energy_band = energy[:-1]
+        flux_band = flux[:-1]
+        is_ul_source = is_ul[:-1]
+        flux_band_err = [flux_err[0][:-1], flux_err[1][:-1]]
+        
+        
+    if source_names[i] == 'PKS 0723-008':
+        energy_band = energy[:-5]
+        flux_band = flux[:-5]
+        flux_band_err = [flux_err[0][:-5], flux_err[1][:-5]]
+        is_ul_source = is_ul[:-5]
+        
+    if source_names[i] == 'PMN J2010-2524':
+        energy_band = energy[3:]
+        flux_band = flux[3:]
+        flux_band_err = [flux_err[0][3:], flux_err[1][3:]]
+        is_ul_source = is_ul[3:]
+
+    else:
+        energy_band = energy
+        flux_band = flux
+        flux_band_err = flux_err
+        is_ul_source = is_ul
+
+    fluxpoints_table = Table([energy_band, flux_band, flux_band_err[0], flux_band_err[1], is_ul_source], names = ['e_ref', 'e2dnde', 'e2dnde_errn', 'e2dnde_errp', 'is_ul'])
     fluxpoints_table['e_ref'].unit = config['columns']['energy_units']
     fluxpoints_table['e2dnde'].unit = config['columns']['energy_flux_units']
     fluxpoints_table['e2dnde_errn'].unit = config['columns']['energy_flux_units']
@@ -135,6 +155,9 @@ for i in range(len(Catalog)):
         elif source_class[i] == 'bcu' or source_class[i] == 'BCU':
             a = config['fit_parameters']['bcu_alpha']
             b = config['fit_parameters']['bcu_beta']
+        elif source_names[i] == 'PKS 0723-008':
+            a = 8
+            b=2
 
         ndof = 2
         
@@ -267,6 +290,7 @@ for i in range(len(Catalog)):
     dataset.models[0].spectral_model.plot(energy_bounds=energy_bounds, color="k", **kwargs)
     dataset.models[0].spectral_model.plot_error(energy_bounds=energy_bounds, **kwargs)
     ax.set_xlim(energy_bounds)
+    #ax.set_ylabel('')
 
     chi2_score = np.sum(chi2_vals) / (len(flux_band) - ndof)
     chi2_results.append(chi2_score)
@@ -275,6 +299,11 @@ for i in range(len(Catalog)):
     flux_erg_err = [[x * 1.602176634e-6 for x in flux_err[0]], [x * 1.602176634e-6 for x in flux_err[1]]]
     
     plt.title(f"{source_names[i]} ({source_class[i].upper()}, {SED_class[i]})", fontsize=14)
+    
+    Swift_Energy_err = [(14,20),(20,24),(24,35),(35,50),(50,75),(75,100),(100,150),(150,195)]
+    Swift_E_err_MeV = [np.array([x-(y[0]*0.001) for x,y in list(zip(energy[:8], Swift_Energy_err))]), np.array([(y[1]*0.001)-x for x,y in list(zip(energy[:8], Swift_Energy_err))])]
+    Fermi_Energy_lim = [(0.05,0.1),(0.1,0.3),(0.3,1),(1,3),(3,10),(10,30),(30,100),(100,1000)]
+    Fermi_E_err_MeV = [np.array([x-(y[0]*1000) for x,y in list(zip(energy[8:], Fermi_Energy_lim))]), np.array([(y[1]*1000)-x for x,y in list(zip(energy[8:], Fermi_Energy_lim))])]
 
     is_ul = np.array(is_ul)
     
@@ -284,10 +313,6 @@ for i in range(len(Catalog)):
     det_fermi = ~is_ul[8:]
     ul_fermi = is_ul[8:]
     
-    if source_names[i] == 'B3 0133+388' or source_names[i] == 'PG 1553+113':
-        det_fermi = ~is_ul[7:]
-        ul_fermi = is_ul[7:]
-    
     energy = np.array(energy)
     flux_erg = np.array(flux_erg)
     flux_erg_err = [np.array(flux_erg_err[0]), np.array(flux_erg_err[1])]
@@ -295,18 +320,15 @@ for i in range(len(Catalog)):
     energy_ul_swift = energy[:8][ul_swift]
     flux_erg_ul_swift = flux_erg[:8][ul_swift]
     flux_err_erg_ul_swift = flux_erg_err[1][:8][ul_swift]
-    #print(flux_erg_ul_swift, flux_err_erg_ul_swift)
     upper_lim_swift = flux_erg_ul_swift + flux_err_erg_ul_swift
-    #print(upper_lim_swift)
     
     energy_ul_fermi = energy[8:][ul_fermi]
     flux_erg_ul_fermi = flux_erg[8:][ul_fermi]
     flux_err_erg_ul_fermi = flux_erg_err[1][8:][ul_fermi]
     upper_lim_fermi = flux_erg_ul_fermi + flux_err_erg_ul_fermi
-    #print(upper_lim_fermi)
     
-    plt.errorbar(energy[:8][det_swift], flux_erg[:8][det_swift], yerr=[flux_erg_err[0][:8][det_swift], flux_erg_err[1][:8][det_swift]], fmt='o',markersize=3,color='red',label='Swift')
-    plt.errorbar(energy[8:][det_fermi], flux_erg[8:][det_fermi], yerr=[flux_erg_err[0][-8:][det_fermi], flux_erg_err[1][-8:][det_fermi]], fmt='o',markersize=3,color='blue',label='Fermi')
+    plt.errorbar(energy[:8][det_swift], flux_erg[:8][det_swift], xerr=[Swift_E_err_MeV[0][det_swift], Swift_E_err_MeV[1][det_swift]], yerr=[flux_erg_err[0][:8][det_swift], flux_erg_err[1][:8][det_swift]], fmt='o',markersize=4,color='red',label='Swift-BAT')
+    plt.errorbar(energy[8:][det_fermi], flux_erg[8:][det_fermi], xerr=[Fermi_E_err_MeV[0][det_fermi], Fermi_E_err_MeV[1][det_fermi]], yerr=[flux_erg_err[0][-8:][det_fermi], flux_erg_err[1][-8:][det_fermi]], fmt='o',markersize=4,color='blue',label='Fermi-LAT')
     for x, y in zip(energy_ul_swift, upper_lim_swift):
             plt.annotate('', xy=(x, y/3), xytext=(x, y), arrowprops=dict(arrowstyle='->', lw=2, color='red'))
         
@@ -315,11 +337,13 @@ for i in range(len(Catalog)):
     
     plt.xscale('log')
     plt.yscale('log')
-    plt.xlabel(f"Energy ({config['columns']['energy_units']})", fontsize=14)
-    plt.ylabel(r"$E^2 \frac{dN}{dE}$" + r" [$erg/cm^{2}/s$]", fontsize=14)
-    plt.legend(loc='upper right', fontsize=12)
-    plt.tick_params(axis='both', labelsize=12)
-    #plt.ylim(1e-15, 1e-9)
+    plt.xlabel(f"Energy ({config['columns']['energy_units']})", fontsize=16)
+    plt.ylabel(r"$\mathrm{E^2 \frac{dN}{dE}}$" + r" [$\mathrm{erg/cm^{2}/s}$]", fontsize=16)
+    handles, labels = plt.gca().get_legend_handles_labels()
+    plt.legend(handles, labels, loc='lower center', bbox_to_anchor=(0.83, 0.001), ncol=1, frameon=False, reverse=False, columnspacing=0.5, handletextpad=0.5)
+    plt.tick_params(axis='both', labelsize=14)
+    plt.ylim(.2e-18, 5e-10)
+    #ax.tick_params(axis='y', labelleft=False)
     os.makedirs(plot_out_dir + 'pdf_plots/', exist_ok=True)
     plt.savefig(plot_out_dir + 'pdf_plots/' + source_names[i] + '.pdf', bbox_inches='tight', dpi=300)
     os.makedirs(plot_out_dir + 'png_plots/', exist_ok=True)

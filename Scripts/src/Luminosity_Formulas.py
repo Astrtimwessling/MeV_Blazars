@@ -9,7 +9,7 @@ def d_L(z):
     
     omega_m = 0.3
     c = 3 * (10**5) 
-    H_0 = 73 
+    H_0 = 70 
         
     def f(x):
         return 1 / np.sqrt(omega_m * (1 + x)**3 + 1 - omega_m)
@@ -23,7 +23,7 @@ def dVdz_dOmega(z):
 # Single energy Flux and Luminosity Calculation
 
 def Monochromatic_k_Correction(nuLnu, z, E):
-    return nuLnu(E*(1+z)) / nuLnu(E)
+    return nuLnu(E) / nuLnu(E*(1+z))
 
 def K_Corrected_luminosity(flux, nuLnu, z, E):
     Lum_Distance = d_L(z)
