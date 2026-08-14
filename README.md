@@ -10,7 +10,10 @@ These MeV instruments will have exciting abilities to observe many types of sour
 ## Table of contents
 1. [Data](#Data)
 2. [Requirements](#Requirements)
-4. [Usage](#Usage)
+3. [Usage](#Usage)
+4. [Contact](#Contact)
+5. [Project Status](#Status)
+6. [Acknowledgements](#Acknowledgements)
    
 
 ## Data/Catalogs
@@ -19,6 +22,9 @@ These MeV instruments will have exciting abilities to observe many types of sour
 
 ## Usage
 
+
+### Runner Scripts
+
 ```
 Blazar_Fitter.py --config Configs/Blazar_Fitter_config_LP.yaml
 ```
@@ -26,16 +32,17 @@ Blazar_Fitter.py --config Configs/Blazar_Fitter_config_LP.yaml
 ```
 Blazar_Fitter.py --config Configs/Blazar_Fitter_config_SBPL.yaml
 ```
+<img width="3570" height="1509" alt="Example_SEDS" src="https://github.com/user-attachments/assets/62956445-de9b-4309-a7dc-195c0973f0c4" />
 
 ```
 SED_Model_Selection.py
 ```
 
-<img width="3570" height="1509" alt="Example_SEDS" src="https://github.com/user-attachments/assets/62956445-de9b-4309-a7dc-195c0973f0c4" />
-
 ```
 Template_SEDS.py
 ```
+
+<img width="8959" height="2654" alt="SED_Templates" src="https://github.com/user-attachments/assets/e8003c7d-5871-4114-a50c-55d757a43fd8" />
 
 ```
 N_S_LF_Calculation.py --config Configs/LF_SED_Template_Params.yaml
@@ -44,3 +51,37 @@ N_S_LF_Calculation.py --config Configs/LF_SED_Template_Params.yaml
 ```
 N_z_LF_Calculation.py --config Configs/LF_SED_Template_Params.yaml
 ```
+
+### Plotter Scripts
+
+```
+Cross_Match_Blazar_Skymap.py
+```
+<img width="4600" height="2880" alt="Annotated_EG_Skymap_TNR" src="https://github.com/user-attachments/assets/665ba6ad-d692-4b7b-91f9-11960573d988" />
+
+
+```
+N_S_Plotter.py
+```
+
+```
+N_z_Plotter.py
+```
+
+### Notebooks
+
+```
+Cross_Matched_Blazars.ipynb
+```
+
+```
+MeV_Blazar_Forecasting.ipynb
+```
+
+## Contact
+
+Please contact me at wessling-resnick.t@northeastern.edu for questions or comments.
+
+## Status
+
+## Acknowledgements
