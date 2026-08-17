@@ -64,6 +64,8 @@ Python3 Prep_MeV_Blazar_Catalog.py
 ```
 Run SED modeling on cross-matched spectra. We use two phenomenological models in this work. Each model has a config file which can be found in ```Scripts/Configs```. Execute each to fit every source with each model. The fitter script will output plots showing the modeled SED and raw SED data by blazar class in individual folders. It will also output a file called ```MeV_Blazar_Fits_LP\SBPL_results.fits```, containing the best fit model parameters for each source, and the $\chi^2$ metric used to evaluate fit quality.
 
+[![gammapy](https://img.shields.io/badge/powered%20by-gammapy-orange.svg?style=flat)](https://www.gammapy.org/)
+
 ```
 Python3 Blazar_Fitter.py --config Configs/Blazar_Fitter_config_LP.yaml
 Python3 Blazar_Fitter.py --config Configs/Blazar_Fitter_config_SBPL.yaml
