@@ -88,15 +88,19 @@ Python3 Template_SEDS.py
 
 We utilize the averaged SEDs to compute the k-corrected luminosity required as the lower bound for cumulative source count, N(>S), calculations, and cumulative redshift count, N(>z), calculations. In this work, we utilize LDDE luminosity functions derived from different source populations in the liturature:
 
-1. Fermi-LAT FSRQs: [Rajguru et al. (2025)](https://arxiv.org/pdf/2510.05515)
-2. Fermi-LAT BLLs: [Ajello et al. (2013)](https://arxiv.org/pdf/1310.0006)
-3. Swift-BAT FSRQs: [Toda et al. (2020)](https://iopscience.iop.org/article/10.3847/1538-4357/ac937f/pdf)
+1. Fermi-LAT FSRQs: [Rajguru, G., et al. (2025)](https://arxiv.org/pdf/2510.05515)
+2. Fermi-LAT BLLs: [Ajello, M., et al. (2013)](https://arxiv.org/pdf/1310.0006)
+3. Swift-BAT FSRQs: [Toda, K., et al. (2020)](https://iopscience.iop.org/article/10.3847/1538-4357/ac937f/pdf)
 
-The luminosity functions and their respective integrand functions are defined in ```/src/LDDE_Luminosity_Functions.py```. Note that for the Fermi-LAT BLL luminosity function, we utilize $LDDE_2$ from Ajello et al. (2013).
+The luminosity functions and their respective integrand functions are defined in ```/src/LDDE_Luminosity_Functions.py```. Note that for the Fermi-LAT BLL luminosity function, we utilize $LDDE_2$ from Ajello et al. (2013). 
+
+
+Running the following the command calculates the cumulative source count at a given sensitivity, N(>S), at sensitivities between $10^{-13}$ and $10^{-9}$ $\mathrm{erg/cm^2/s}$. This calculation outputs a file called ```N_S_LF_Output.fits```, where the first column are the sensitivity values, and subsequent columns are the counts for each luminosity function at each selected energy.
 
 ```
 Python3 N_S_LF_Calculation.py --config Configs/LF_SED_Template_Params.yaml
 ```
+Similarly, running the following command calculates the cumulative redshift counts, N(>z), at redshifts between z = 0 and z = 8. The output file for this script is called ```N_z_LF_Output.fits```, where the first column is the redshift values, and the subsequent columns are the number of sources beyond that redshift, z, as determined by the luminosity function calculation.
 
 ```
 Python3 N_z_LF_Calculation.py --config Configs/LF_SED_Template_Params.yaml
@@ -104,25 +108,48 @@ Python3 N_z_LF_Calculation.py --config Configs/LF_SED_Template_Params.yaml
 
 ### Plotter Scripts
 
+The following scripts are used to make plots that will be shown in the upcoming Wessling, T., et al. 2026 paper. 
+
+
+The following script produces skymaps for the cross-matched blazar population, with flux values represented by a colorbar. The script produces both large, individual skymaps for each of the selected energy, and one 3x3 grid of all of the selected energies. 
+
 ```
 Python3 Cross_Match_Blazar_Skymap.py
 ```
+Here we show an example of a large single energy skymap at 1 MeV, annotated to highlight the brightest sources:
+
 <img width="4600" height="2880" alt="Annotated_EG_Skymap_TNR" src="https://github.com/user-attachments/assets/665ba6ad-d692-4b7b-91f9-11960573d988" />
 
-
+To create the figure shown at the top of this README, we run the following script:
 ```
 Python3 N_S_Plotter.py
 ```
+The output of this script plots the joint forcast at each energy, including the number of detectable cross-matched sources and cumulative source counts determined from luminosity functions across the $10^{-13}$ and $10^{-9}$ $\mathrm{erg/cm^2/s}$ range of sensitivities. The sensitivities at each of our selected energies are shown as verticle lines on each respective plot. An additional plot is also created containing a plot at 6 of the selected energies. This figure will be shown in the text of the paper.
+
+
+Similarly, we make plots using the following command for the cumulative redshift estimates and cross-matched redshift detectabilities at each energy for the sensitivity limit of each instrument at that energy. 
 
 ```
 Python3 N_z_Plotter.py
 ```
+<p align="center">
+<img width="800" height="700" alt="Cumulative_N_z_1 0" src="https://github.com/user-attachments/assets/85dbd5a4-f558-417e-a283-47591b9787e5" />
+</p>
 
 ### Notebooks
+This repository also contains two jupyter notebooks that we use for results analysis.
+
+
+The first of these notebooks has code that does simple population analysis of the cross matched sample.
 
 ```
 Cross_Matched_Blazars.ipynb
 ```
+<p align="center">
+<img width="600" height="450" alt="LAT_BAT_index_comparison" src="https://github.com/user-attachments/assets/bed29168-9e31-48ef-ac90-06c7d07641bc" />
+</p>
+
+The other notebook is used analysis of the forecasting results, determining the estimates of detectable counts for future MeV $\gamma$-ray instruments.
 
 ```
 MeV_Blazar_Forecasting.ipynb
@@ -133,3 +160,5 @@ MeV_Blazar_Forecasting.ipynb
 Please contact me at wessling-resnick.t@northeastern.edu for questions or comments.
 
 ## Acknowledgements
+
+This work was supported by funding for the Gamma-Ray and AntiMatter Survey collaboration through the NASA APRA grant, No.22-APRA22-0128 (80NSSC23K1661), and the Alfred P. Sloan Foundation in the US, as well as the Japan Society for the Promotion of Science (JSPS) in Japan. In addition, this work was supported by the Northeastern University Undergraduate Research and Fellowships office by funding through the PEAK Ascent award (Summer 2024), PEAK Summit awards (Fall 2024, Spring 2025), and the AJC Merit Scholarship.
